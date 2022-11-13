@@ -106,13 +106,115 @@ public class Model extends Observable {
      *    value, then the leading two tiles in the direction of motion merge,
      *    and the trailing tile does not.
      * */
+
+    // TODO: Modify this.board (and perhaps this.score) to account
+    // for the tilt to the Side SIDE. If the board changed, set the
+    // changed local variable to true.
+
+
+    //修改board实例、修改分数实例、如果有变化，set changed be true
+    //所以的移动---调用board的move方法、用tile访问瓷砖----只move一次，来完成整个移动
+    //最难的部分是弄清楚每张牌应该在哪一行结束。即这个牌经移动后，位置会在哪里
+
+
+    //什么时候该更新分数：
+    //note that the board.move(c, r, t) method returns true
+    // if moving the tile t
+    // to column c and row r would replace
+    // an existing tile
+    // (i.e. you have a merge operation).
+
+    //移动的方向：side parameter is equal to Side.NORTH，一开始都让他向上----testuponly
+        /*
+        3
+        2
+        1
+        0向上移动：如果上面的元素是空的、此排元素与上排元素一致
+         */
+    //it is safe to iterate starting from row 3 down,
+    // since there’s no way a tile will have to move again after moving once.
+
+    //辅助方法--- that processes a single column of the board,----return a desired row value
+
+    //Board类有一个setViewingPerspective(Side s)函数，它将改变瓦片和移动类的行为，
+    //Make sure to use board.
+    // setViewingPerpsective to set the perspective back to Side.
+    // NORTH before you finish your call to tilt,
     public boolean tilt(Side side) {
         boolean changed;
         changed = false;
 
-        // TODO: Modify this.board (and perhaps this.score) to account
-        // for the tilt to the Side SIDE. If the board changed, set the
-        // changed local variable to true.
+        //判断board的方向
+        if (side != Side.NORTH) {
+            board.setViewingPerspective(side);
+        }
+
+
+        int board_size = board.size();
+
+        //移动:通过遍历获取现在的位置，然后，看看移动的最终位置
+        //1。能不能向上动atleasemoveExist
+        //2。向上动到哪
+        for (int colIndex = 0; colIndex <board_size; colIndex++)
+        {
+            int nullCount = 0;
+            for (int rowIndex = board_size - 1; rowIndex >= 0; rowIndex --)
+            {
+                if (board.tile(colIndex,rowIndex) == null)
+                {
+                    nullCount ++;
+                    continue;
+                }
+                Tile t = board.tile(colIndex, rowIndex);
+                if (board.tile(colIndex, rowIndex + nullCount) == null)
+                {
+                   board.move(colIndex, rowIndex + nullCount, t);
+                   changed = true;
+                }
+            }
+        }
+
+
+        //要合并吗，只能合并一次
+        for (int colIndex = 0; colIndex < board_size; colIndex++)
+        {
+            for (int rowIndex = board_size - 1; rowIndex > 0; rowIndex--) {
+                if ((board.tile(colIndex, rowIndex) != null) && (board.tile(colIndex, rowIndex - 1) != null) && (board.tile(colIndex, rowIndex).value() == board.tile(colIndex, rowIndex - 1).value()))
+                {
+                    Tile nextTile = board.tile(colIndex, rowIndex - 1);
+                    board.move(colIndex, rowIndex, nextTile);
+                    score += nextTile.value() * 2;
+                    changed = true;
+                }
+            }
+        }
+
+        //合并后，一个砖块要向上动到合并好的砖块的下一个位置
+
+        for (int colIndex = 0; colIndex < board_size; colIndex++)
+        {
+            int nullCount = 0;
+            for (int rowIndex = board_size - 1;rowIndex >= 0; rowIndex --)
+            {
+                if (board.tile(colIndex, rowIndex) == null)
+                {
+                    nullCount ++;
+                    continue;
+                }
+                Tile t = board.tile(colIndex, rowIndex);
+                if (board.tile(colIndex, rowIndex + nullCount) == null)
+                {
+                    board.move(colIndex, rowIndex + nullCount, t);
+                }
+            }
+
+        }
+        //还原board方向
+        if (side != Side.NORTH) {
+            board.setViewingPerspective(Side.NORTH);
+        }
+
+
 
         checkGameOver();
         if (changed) {
@@ -138,6 +240,14 @@ public class Model extends Observable {
      * */
     public static boolean emptySpaceExists(Board b) {
         // TODO: Fill in this function.
+        int size = b.size();
+        for (int i = 0; i < size; ++i) {
+            for (int j = 0; j < size; ++j) {
+                if (b.tile(i, j) == null) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -148,6 +258,18 @@ public class Model extends Observable {
      */
     public static boolean maxTileExists(Board b) {
         // TODO: Fill in this function.
+        int board_size = b.size();
+
+        for (int i = 0; i < board_size; i++) {
+            for (int j = 0; j < board_size; j++) {
+                if (b.tile(i, j) == null) {
+                }else{
+                    if (b.tile(i, j).value() == MAX_PIECE) {
+                        return true;
+                    }
+                }
+            }
+        }
         return false;
     }
 
@@ -159,6 +281,58 @@ public class Model extends Observable {
      */
     public static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
+        int board_size = b.size();
+        if (emptySpaceExists(b)) {
+            return true;
+        }
+        if (noBoudary(b)) {
+            return true;
+        }
+        if (inBoundary(b)) {
+            return true;
+        }
+        return false;
+
+
+        //查看上下/左右有没有相邻的牌，要是有，就可以移动
+
+    }
+
+    public static boolean noBoudary(Board b) {
+        int board_size = b.size();
+        //不考虑边界条件
+        for (int i = 0; i < board_size - 1; i++)
+        {
+            for (int j = 0; j < board_size - 1; j++)
+            {
+                if (b.tile(i, j).value() == b.tile(i, j + 1).value())
+                {
+                    return true;
+                }
+                if (b.tile(i, j).value() == b.tile(i + 1, j).value())
+                {
+                    return true;
+                }
+            }
+
+        }
+        return false;
+    }
+
+    public static boolean inBoundary(Board b) {
+        int board_size = b.size();
+
+        int col = board_size -1;
+        for (int i = 0; i < board_size - 1; ++i) {
+            if (b.tile(col, i).value() == b.tile(col, i + 1).value())
+                return true;
+        }
+
+        int row = board_size -1;
+        for (int j = 0; j < board_size - 1; ++j) {
+            if (b.tile(j, row).value() == b.tile(j + 1, row).value())
+                return true;
+        }
         return false;
     }
 
